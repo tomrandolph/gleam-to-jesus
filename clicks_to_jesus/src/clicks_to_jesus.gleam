@@ -12,9 +12,7 @@ fn compare_words(
   embeddings: dict.Dict(String, Result(List(Float), c)),
 ) -> Result(Float, String) {
   case dict.get(embeddings, a), dict.get(embeddings, b) {
-    Ok(Ok(a)), Ok(Ok(b)) -> {
-      Ok(embed.cosine_similarity(a, b))
-    }
+    Ok(Ok(a)), Ok(Ok(b)) -> Ok(embed.cosine_similarity(a, b))
     Ok(Error(_)), _ -> Error("Failed to embed " <> a)
     _, Ok(Error(_)) -> Error("Failed to embed " <> b)
     Error(_), _ -> Error("Could not find embedding for " <> a)
