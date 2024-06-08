@@ -1,45 +1,37 @@
 import argv
 import embed
-import gleam/dynamic
+import gleam/dict
 import gleam/float
 import gleam/io
-import gleam/json
 import gleam/list
 import gleam/result
 
-fn compare_words(a: String, b: String) -> Result(Float, String) {
-  case embed.oai_embed([a, b]) {
-    Ok([Ok(c), Ok(d)]) -> {
-      Ok(embed.cosine_similarity(c, d))
+fn compare_words(
+  a: String,
+  b: String,
+  embeddings: dict.Dict(String, Result(List(Float), c)),
+) -> Result(Float, String) {
+  case dict.get(embeddings, a), dict.get(embeddings, b) {
+    Ok(Ok(a)), Ok(Ok(b)) -> {
+      Ok(embed.cosine_similarity(a, b))
     }
-    Error(_) -> Error("Failed to decode json")
-    Ok([Error(_), _]) -> Error("Failed to embed" <> a)
-    Ok([_, Error(_)]) -> Error("Failed to embed" <> b)
-    _ -> Error("Failed to embed?")
+    Ok(Error(_)), _ -> Error("Failed to embed " <> a)
+    _, Ok(Error(_)) -> Error("Failed to embed " <> b)
+    Error(_), _ -> Error("Could not find embedding for " <> a)
+    _, Error(_) -> Error("Could not find embedding for " <> b)
   }
 }
 
-type ComparisonResult
+fn print_comparision(
+  a: String,
+  b: String,
+  embeddings: dict.Dict(String, Result(List(Float), a)),
+) {
+  case compare_words(a, b, embeddings) {
+    Ok(c) -> io.println(a <> " <> " <> b <> ": " <> float.to_string(c))
 
-fn print_comparision(a: String, b: String) {
-  case compare_words(a, b) {
-    Ok(c) -> {
-      io.print(a)
-      io.print(" <> ")
-      io.print(b)
-      io.print(": ")
-      io.print(float.to_string(c))
-      io.print("\n")
-    }
-    Error(e) -> {
-      io.print("Failed to compare ")
-      io.print(a)
-      io.print(" and ")
-      io.print(b)
-      io.print(": ")
-      io.print(e)
-      io.print("\n")
-    }
+    Error(e) ->
+      io.println("Failed to compare " <> a <> " and " <> b <> ": " <> e)
   }
 }
 
@@ -54,13 +46,28 @@ fn n_times(n: Int, func: fn() -> b) -> b {
 }
 
 pub fn main() {
-  case argv.load().arguments {
+  let args = argv.load().arguments
+  let #(words, combos) = case args {
     ["--with", one_word, ..words] -> {
-      list.map(words, fn(w) { print_comparision(one_word, w) })
+      #([one_word, ..words], list.map(words, fn(word) { #(one_word, word) }))
     }
-    words -> {
-      list.combination_pairs(words)
-      |> list.map(fn(a) { print_comparision(a.0, a.1) })
+    words -> #(words, list.combination_pairs(words))
+  }
+  // is nlogn, what is converting to a dict
+  let unique_words = list.unique(words)
+  let lookup =
+    result.map(embed.oai_embed(unique_words), fn(e) {
+      list.zip(unique_words, e) |> dict.from_list
+    })
+  case lookup {
+    Ok(embeddings) ->
+      list.each(combos, fn(combo) {
+        print_comparision(combo.0, combo.1, embeddings)
+      })
+    Error(e) -> {
+      io.print("Failed to embed words: ")
+      io.debug(e)
+      io.println("")
     }
   }
 }
