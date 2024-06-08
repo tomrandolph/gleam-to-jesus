@@ -11,15 +11,22 @@ import gleam/json.{type DecodeError}
 import gleam/list
 import gleam/result
 
-pub fn oai_embed(text: String) -> Result(List(Float), ExtractError) {
-  // Prepare a HTTP request record
+pub type EmbedError {
+  EmbedDecodeError(DecodeError)
+  EmbedRequestError(hackney.Error)
+}
 
+pub fn oai_embed(
+  inputs: List(String),
+) -> Result(List(Result(List(Float), InvlalidBase64Floats)), EmbedError) {
+  // Prepare a HTTP request record
   let assert Ok(req) = request.to("https://api.openai.com/v1/embeddings")
   let assert Ok(key) = os.get_env("OPENAI_API_KEY")
   let body =
     json.object([
-      #("input", json.string(text)),
+      #("input", json.array(inputs, json.string)),
       #("model", json.string("text-embedding-3-small")),
+      #("encoding_format", json.string("base64")),
     ])
     |> json.to_string
 
@@ -31,31 +38,26 @@ pub fn oai_embed(text: String) -> Result(List(Float), ExtractError) {
 
   let res = hackney.send(req)
   case res {
-    Ok(response) -> {
-      let Response(_, _, body: body) = response
-      extract_embeddings(body)
-    }
+    Ok(Response(_, _, body: body)) ->
+      result.map_error(extract_embeddings(body), EmbedDecodeError)
+
     Error(err) -> {
-      io.debug(err)
-      Ok([])
+      Error(EmbedRequestError(err))
     }
   }
 }
 
 type EmbeddingObject {
-  EmbeddingObject(embedding: List(Float))
+  EmbeddingObject(embedding: String)
 }
 
 type EmbeddingResponse {
   EmbeddingResponse(List(EmbeddingObject))
 }
 
-pub type ExtractError {
-  NoEmbeddingsInList
-  ExtractError(DecodeError)
-}
-
-pub fn extract_embeddings(json_str: String) -> Result(List(Float), ExtractError) {
+pub fn extract_embeddings(
+  json_str: String,
+) -> Result(List(Result(List(Float), InvlalidBase64Floats)), DecodeError) {
   let decoded =
     json.decode(
       json_str,
@@ -65,24 +67,20 @@ pub fn extract_embeddings(json_str: String) -> Result(List(Float), ExtractError)
           "data",
           dynamic.list(dynamic.decode1(
             EmbeddingObject,
-            dynamic.field("embedding", dynamic.list(dynamic.float)),
+            dynamic.field("embedding", dynamic.string),
           )),
         ),
       ),
     )
   case decoded {
     Ok(EmbeddingResponse(data)) -> {
-      case list.first(data) {
-        Ok(EmbeddingObject(embedding)) -> Ok(embedding)
-        Error(_) -> {
-          Error(NoEmbeddingsInList)
-        }
-      }
+      Ok(list.map(data, fn(obj) { b64_to_floats(obj.embedding) }))
     }
+
     Error(e) -> {
       io.println("Decoding error")
       io.debug(e)
-      Error(ExtractError(e))
+      Error(e)
     }
   }
 }

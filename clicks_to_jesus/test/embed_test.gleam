@@ -1,6 +1,8 @@
-import embed.{NoEmbeddingsInList}
+import embed
 
-// import gleam/json.{DecodeError}
+import gleam/dynamic.{DecodeError}
+
+import gleam/json.{UnexpectedFormat}
 import gleeunit
 import gleeunit/should
 
@@ -36,13 +38,13 @@ pub fn extract_embeddings_test() {
         \"data\": [
             {
             \"object\": \"embedding\",
-            \"embedding\": [1.0, 2.0, 3.0]
+            \"embedding\": \"AACAPwAAAEAAAEBA\"
             }
         ]
     }"
 
   embed.extract_embeddings(json_str)
-  |> should.equal(Ok([1.0, 2.0, 3.0]))
+  |> should.equal(Ok([Ok([1.0, 2.0, 3.0])]))
 
   let json_str =
     "{
@@ -51,15 +53,28 @@ pub fn extract_embeddings_test() {
     }"
 
   embed.extract_embeddings(json_str)
-  |> should.equal(Error(NoEmbeddingsInList))
+  |> should.equal(Ok([]))
   let json_str =
     "{
         \"object\": \"list\"
     }"
 
   embed.extract_embeddings(json_str)
-  |> should.be_error
-  // Decode Error TODO how to precisely test?
+  |> should.equal(
+    Error(UnexpectedFormat([DecodeError("field", "nothing", ["data"])])),
+  )
+
+  let json_str =
+    "{
+        \"object\": \"list\",
+        \"data\": [{\"embedding\": \"AACAPwAAAEAAAE\"}]
+
+    }"
+
+  embed.extract_embeddings(json_str)
+  |> should.equal(
+    Ok([Error(embed.InvlalidBase64Floats(embed.InvalidBitArray))]),
+  )
 }
 
 pub fn b64_to_floats_test() {
