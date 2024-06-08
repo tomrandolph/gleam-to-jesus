@@ -1,3 +1,4 @@
+import gleam/bit_array
 import gleam/dynamic
 import gleam/erlang/os
 import gleam/float
@@ -105,4 +106,39 @@ pub fn norm(a: List(Float)) -> Float {
 /// Calculate the cosine similarity of two vectors
 pub fn cosine_similarity(a: List(Float), b: List(Float)) -> Float {
   dot_product(a, b) /. norm(a) *. norm(b)
+}
+
+pub type InvalidBitArray {
+  InvalidBitArray
+}
+
+pub fn bitarray_to_floats(
+  bits: BitArray,
+  floats: List(Float),
+) -> Result(List(Float), InvalidBitArray) {
+  case bits {
+    <<>> -> {
+      Ok(list.reverse(floats))
+    }
+    <<num:float-little-size(32), rest:bytes>> -> {
+      // TODO optization: match number from back?
+      bitarray_to_floats(rest, [num, ..floats])
+    }
+    _ -> {
+      Error(InvalidBitArray)
+    }
+  }
+}
+
+pub type InvlalidBase64Floats {
+  InvlalidBase64
+  InvlalidBase64Floats(InvalidBitArray)
+}
+
+pub fn b64_to_floats(b64: String) -> Result(List(Float), InvlalidBase64Floats) {
+  case bit_array.base64_decode(b64) {
+    Ok(bits) ->
+      result.map_error(bitarray_to_floats(bits, []), InvlalidBase64Floats)
+    Error(Nil) -> Error(InvlalidBase64)
+  }
 }

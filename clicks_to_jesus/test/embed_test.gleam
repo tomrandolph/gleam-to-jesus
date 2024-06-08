@@ -61,3 +61,33 @@ pub fn extract_embeddings_test() {
   |> should.be_error
   // Decode Error TODO how to precisely test?
 }
+
+pub fn b64_to_floats_test() {
+  embed.b64_to_floats("AQID")
+  |> should.equal(Error(embed.InvlalidBase64Floats(embed.InvalidBitArray)))
+  embed.b64_to_floats("AAAAQgAAKEI=")
+  |> should.equal(Ok([32.0, 42.0]))
+}
+
+pub fn bittarray_to_floats_test() {
+  embed.bitarray_to_floats(<<42.0:float-little-size(32)>>, [])
+  |> should.equal(Ok([42.0]))
+
+  embed.bitarray_to_floats(
+    <<42.0:float-little-size(32), 69.0:float-little-size(32)>>,
+    [],
+  )
+  |> should.equal(Ok([42.0, 69.0]))
+
+  embed.bitarray_to_floats(<<42.0:float-little-size(16)>>, [])
+  |> should.equal(Error(embed.InvalidBitArray))
+
+  embed.bitarray_to_floats(
+    <<
+      42.0:float-little-size(16), 42.0:float-little-size(32),
+      69.0:float-little-size(32),
+    >>,
+    [],
+  )
+  |> should.equal(Error(embed.InvalidBitArray))
+}
