@@ -12,24 +12,26 @@ pub fn bfs(
 ) -> List(a) {
   case queue.pop_front(q) {
     Ok(#(node, q)) -> {
-      case set.contains(visited, node) {
-        True -> bfs(graph, q, l, visited)
-        False -> {
-          let visited = set.insert(visited, node)
-          let l = [node, ..l]
-          io.debug(node)
-          case dict.get(graph, node) {
-            Ok(neighbors) -> {
-              io.debug(neighbors)
-              let q =
-                list.filter(neighbors, fn(n) { !set.contains(visited, n) })
-                |> list.fold(q, fn(q, i) { queue.push_back(q, i) })
-              bfs(graph, q, l, visited)
-            }
-            Error(_) -> {
-              bfs(graph, q, l, visited)
-            }
-          }
+      let visit = fn(cb: fn() -> List(a)) -> List(a) {
+        case set.contains(visited, node) {
+          True -> bfs(graph, q, l, visited)
+          False -> cb()
+        }
+      }
+      use <- visit()
+      let visited = set.insert(visited, node)
+      let l = [node, ..l]
+      io.debug(node)
+      case dict.get(graph, node) {
+        Ok(neighbors) -> {
+          io.debug(neighbors)
+          let q =
+            list.filter(neighbors, fn(n) { !set.contains(visited, n) })
+            |> list.fold(q, fn(q, i) { queue.push_back(q, i) })
+          bfs(graph, q, l, visited)
+        }
+        Error(_) -> {
+          bfs(graph, q, l, visited)
         }
       }
     }
