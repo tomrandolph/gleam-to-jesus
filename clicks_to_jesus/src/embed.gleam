@@ -20,6 +20,7 @@ pub fn oai_embed(
   inputs: List(String),
 ) -> Result(List(Result(List(Float), InvlalidBase64Floats)), EmbedError) {
   // Prepare a HTTP request record
+
   let assert Ok(req) = request.to("https://api.openai.com/v1/embeddings")
   let assert Ok(key) = os.get_env("OPENAI_API_KEY")
   let body =
