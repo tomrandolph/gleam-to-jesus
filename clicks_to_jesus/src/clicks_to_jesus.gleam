@@ -9,6 +9,7 @@ import gleam/result
 import gleam/set.{type Set}
 import gleam/string
 import gleam/uri
+import graphs
 import html
 
 fn read_input(strs: List(String)) -> String {
@@ -28,8 +29,8 @@ fn read_input(strs: List(String)) -> String {
   }
 }
 
-fn fetch_html(link: String) {
-  use req <- result.try(request.to(link))
+fn fetch_html(link: uri.Uri) {
+  use req <- result.try(request.from_uri(link))
   case hackney.send(req) {
     Error(_) -> {
       io.println_error("Failed to fetch link")
@@ -40,17 +41,34 @@ fn fetch_html(link: String) {
 }
 
 pub fn main() {
+  let assert Ok(looking_for) = uri.parse("https://en.wikipedia.org/wiki/Jesus")
   let assert Ok(base) = uri.parse("https://en.wikipedia.org")
   case argv.load().arguments {
     [link] -> {
-      use text <- result.try(fetch_html(link))
-      let links =
-        list.map(html.find_internal_links(text), fn(l) {
-          use path <- result.try(uri.parse(l))
-          uri.merge(base, path)
-        })
-        |> result.values
-      io.debug(list.map(links, uri.to_string))
+      use start <- result.try(uri.parse(link))
+
+      let get_neighbors = fn(link: uri.Uri) {
+        case fetch_html(link) {
+          Error(_) -> []
+          Ok(body) -> {
+            let links =
+              html.find_internal_links(body)
+              |> list.unique
+              |> list.filter(string.starts_with(_, "/wiki/"))
+              |> list.filter(fn(l) { !string.contains(l, ":") })
+              |> list.map(fn(l) {
+                use path <- result.try(uri.parse(l))
+                uri.merge(base, path)
+              })
+            result.values(links)
+          }
+        }
+      }
+      graphs.bfs(get_neighbors, fn(a) { a == looking_for }, start)
+      |> list.map(fn(a) { a.path })
+      |> io.debug
+      |> list.length
+      |> io.debug
       Ok(Nil)
     }
     _ -> {
