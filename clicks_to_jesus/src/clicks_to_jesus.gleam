@@ -1,8 +1,14 @@
+import argv
 import gleam/erlang.{Eof, NoData}
+import gleam/hackney
+import gleam/http/request
+import gleam/http/response.{Response}
 import gleam/io
 import gleam/list
+import gleam/result
 import gleam/set.{type Set}
 import gleam/string
+import gleam/uri
 import html
 
 fn read_input(strs: List(String)) -> String {
@@ -22,24 +28,34 @@ fn read_input(strs: List(String)) -> String {
   }
 }
 
-// fn bfs(links: List(String), visited: Set(String)) -> List(String) {
-//   case links {
-//     [] -> visited
-//     [link, ..rest] -> {
-//       if list.member(visited, link) {
-//         bfs(rest, visited)
-//       } else {
-//         let new_links = html.find_internal_links(link)
-//         bfs(rest ++ new_links, [link, ..visited])
-//       }
-//     }
-//   }
-// }
+fn fetch_html(link: String) {
+  use req <- result.try(request.to(link))
+  case hackney.send(req) {
+    Error(_) -> {
+      io.println_error("Failed to fetch link")
+      Error(Nil)
+    }
+    Ok(Response(_, _, body)) -> Ok(body)
+  }
+}
 
 pub fn main() {
-  read_input([])
-  |> html.find_internal_links
-  |> list.filter(string.starts_with(_, "/wiki/"))
-  |> list.unique
-  |> list.each(io.println)
+  let assert Ok(base) = uri.parse("https://en.wikipedia.org")
+  case argv.load().arguments {
+    [link] -> {
+      use text <- result.try(fetch_html(link))
+      let links =
+        list.map(html.find_internal_links(text), fn(l) {
+          use path <- result.try(uri.parse(l))
+          uri.merge(base, path)
+        })
+        |> result.values
+      io.debug(list.map(links, uri.to_string))
+      Ok(Nil)
+    }
+    _ -> {
+      io.println_error("Usage: gleam run <link>")
+      Error(Nil)
+    }
+  }
 }
