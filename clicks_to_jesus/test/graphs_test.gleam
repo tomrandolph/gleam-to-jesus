@@ -16,6 +16,19 @@ pub fn bfs_test() {
     |> dict.insert(2, [3])
     |> dict.insert(3, [1])
   let get_neighbors = fn(a) { result.unwrap(dict.get(g, a), []) }
-  let l = graphs.bfs(get_neighbors, 0)
+  let l = graphs.bfs(get_neighbors, fn(_) { False }, 0)
   should.equal(l, [0, 1, 2, 3])
+}
+
+pub fn bfs_early_stopping_test() {
+  let g =
+    dict.new()
+    |> dict.insert(0, [1, 2])
+    |> dict.insert(1, [2])
+    |> dict.insert(2, [3])
+    |> dict.insert(3, [1])
+  let get_neighbors = fn(a) { result.unwrap(dict.get(g, a), []) }
+  let should_stop = fn(a) { a == 2 }
+  let l = graphs.bfs(get_neighbors, should_stop, 0)
+  should.equal(l, [0, 2])
 }
