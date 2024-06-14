@@ -1,5 +1,5 @@
+import gleam/bool
 import gleam/dict.{type Dict}
-import gleam/io
 import gleam/list
 import gleam/queue.{type Queue}
 import gleam/set.{type Set}
@@ -12,19 +12,15 @@ pub fn bfs(
 ) -> List(a) {
   case queue.pop_front(q) {
     Ok(#(node, q)) -> {
-      let visit = fn(cb: fn() -> List(a)) -> List(a) {
-        case set.contains(visited, node) {
-          True -> bfs(graph, q, l, visited)
-          False -> cb()
-        }
-      }
-      use <- visit()
+      use <- bool.lazy_guard(set.contains(visited, node), fn() {
+        bfs(graph, q, l, visited)
+      })
       let visited = set.insert(visited, node)
+
       let l = [node, ..l]
-      io.debug(node)
+
       case dict.get(graph, node) {
         Ok(neighbors) -> {
-          io.debug(neighbors)
           let q =
             list.filter(neighbors, fn(n) { !set.contains(visited, n) })
             |> list.fold(q, fn(q, i) { queue.push_back(q, i) })
