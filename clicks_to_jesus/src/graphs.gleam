@@ -2,7 +2,15 @@ import gleam/bool
 import gleam/dict.{type Dict}
 import gleam/list
 import gleam/queue.{type Queue}
+import gleam/result
 import gleam/set.{type Set}
+
+pub fn default(fallable: Result(a, e), fallback: b, mapper: fn(a) -> b) -> b {
+  case fallable {
+    Ok(a) -> mapper(a)
+    Error(_) -> fallback
+  }
+}
 
 pub fn bfs(
   graph: Dict(a, List(a)),
@@ -11,6 +19,7 @@ pub fn bfs(
   visited: Set(a),
 ) -> List(a) {
   case queue.pop_front(q) {
+    Error(_) -> list.reverse(l)
     Ok(#(node, q)) -> {
       use <- bool.lazy_guard(set.contains(visited, node), fn() {
         bfs(graph, q, l, visited)
@@ -19,18 +28,14 @@ pub fn bfs(
 
       let l = [node, ..l]
 
-      case dict.get(graph, node) {
-        Ok(neighbors) -> {
-          let q =
-            list.filter(neighbors, fn(n) { !set.contains(visited, n) })
-            |> list.fold(q, fn(q, i) { queue.push_back(q, i) })
-          bfs(graph, q, l, visited)
-        }
-        Error(_) -> {
-          bfs(graph, q, l, visited)
-        }
-      }
+      let q =
+        result.map(dict.get(graph, node), fn(neighbors) {
+          list.filter(neighbors, fn(n) { !set.contains(visited, n) })
+          |> list.fold(q, queue.push_back)
+        })
+        |> result.unwrap(q)
+
+      bfs(graph, q, l, visited)
     }
-    Error(_) -> list.reverse(l)
   }
 }
