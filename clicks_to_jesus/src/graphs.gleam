@@ -5,6 +5,16 @@ import gleam/queue.{type Queue}
 import gleam/result
 import gleam/set.{type Set}
 
+/// Allows returning early with a default value (fallback)
+/// Use with `use` expression to unwrap the Ok value of the result and use it
+/// or return the fallback value if the result is an Error
+///  ## Examples
+/// ```gleam
+/// use item <- default(dict.get(key), 0)
+/// // item -> 10
+/// item + 10
+/// // returns 20 if  dict.get(key) is Ok(10) otherwise 0
+/// ```
 pub fn default(fallable: Result(a, e), fallback: b, mapper: fn(a) -> b) -> b {
   case fallable {
     Ok(a) -> mapper(a)
