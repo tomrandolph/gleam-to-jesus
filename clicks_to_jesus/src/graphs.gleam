@@ -36,13 +36,14 @@ pub fn in_case(
 fn do_bfs(
   get_neighbors: fn(a) -> List(a),
   should_stop: fn(a) -> Bool,
+  put_next: fn(Queue(a), a) -> Queue(a),
   q: Queue(a),
   l: List(a),
   visited: Set(a),
 ) -> List(a) {
   use #(node, q) <- default(queue.pop_front(q), list.reverse(l))
   use <- bool.lazy_guard(set.contains(visited, node), fn() {
-    do_bfs(get_neighbors, should_stop, q, l, visited)
+    do_bfs(get_neighbors, should_stop, put_next, q, l, visited)
   })
 
   let visited = set.insert(visited, node)
@@ -53,9 +54,9 @@ fn do_bfs(
   use <- in_case(stop_for, fn(a) { list.reverse([a, ..l]) })
   let q =
     list.filter(neighbors, fn(n) { !set.contains(visited, n) })
-    |> list.fold(q, queue.push_back)
+    |> list.fold(q, put_next)
 
-  do_bfs(get_neighbors, should_stop, q, l, visited)
+  do_bfs(get_neighbors, should_stop, put_next, q, l, visited)
 }
 
 pub fn bfs(
@@ -67,5 +68,36 @@ pub fn bfs(
   let l = []
   let visited = set.new()
 
-  do_bfs(get_neighbors, should_stop, q, l, visited)
+  do_bfs(get_neighbors, should_stop, queue.push_back, q, l, visited)
 }
+
+pub fn dfs(
+  get_neighbors: fn(a) -> List(a),
+  should_stop: fn(a) -> Bool,
+  start: a,
+) -> List(a) {
+  let q = queue.from_list([start])
+  let l = []
+  let visited = set.new()
+
+  do_bfs(get_neighbors, should_stop, queue.push_front, q, l, visited)
+}
+// fn do_dfs(
+//   get_neighbors: fn(a) -> List(a),
+//   should_stop: fn(a) -> Bool,
+//   node: a,
+//   l: List(a),
+//   visited: Set(a),
+// ) -> List(a) {
+//   use <- bool.guard(set.contains(visited, node), l)
+//   let visited = set.insert(visited, node)
+//   let neighbors = get_neighbors(node)
+//   let stop_for = list.find(neighbors, should_stop)
+//   use <- in_case(stop_for, fn(a) { list.reverse([a, ..l]) })
+//   let unvisited = list.filter(neighbors, fn(n) { !set.contains(visited, n) })
+//   let l =
+//     list.fold(unvisited, l, fn(n, l) {
+//       do_dfs(get_neighbors, should_stop, n, l, visited)
+//     })
+//   l
+// }

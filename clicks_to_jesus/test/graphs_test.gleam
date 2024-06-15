@@ -32,3 +32,28 @@ pub fn bfs_early_stopping_test() {
   let l = graphs.bfs(get_neighbors, should_stop, 0)
   should.equal(l, [0, 2])
 }
+
+pub fn dfs_test() {
+  let g =
+    dict.new()
+    |> dict.insert(0, [1, 2])
+    |> dict.insert(1, [2])
+    |> dict.insert(2, [3])
+    |> dict.insert(3, [1])
+  let get_neighbors = fn(a) { result.unwrap(dict.get(g, a), []) }
+  let l = graphs.dfs(get_neighbors, fn(_) { False }, 0)
+  should.equal(l, [0, 2, 3, 1])
+}
+
+pub fn dfs_early_stopping_test() {
+  let g =
+    dict.new()
+    |> dict.insert(0, [1, 2])
+    |> dict.insert(1, [2])
+    |> dict.insert(2, [3])
+    |> dict.insert(3, [1])
+  let get_neighbors = fn(a) { result.unwrap(dict.get(g, a), []) }
+  let should_stop = fn(a) { a == 3 }
+  let l = graphs.dfs(get_neighbors, should_stop, 0)
+  should.equal(l, [0, 2, 3])
+}
