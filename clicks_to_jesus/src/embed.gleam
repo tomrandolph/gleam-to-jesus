@@ -6,10 +6,12 @@ import gleam/hackney
 import gleam/http
 import gleam/http/request
 import gleam/http/response.{Response}
+import gleam/int
 import gleam/io
 import gleam/json.{type DecodeError}
 import gleam/list
 import gleam/result
+import timing
 
 pub type EmbedError {
   EmbedDecodeError(DecodeError)
@@ -37,7 +39,12 @@ pub fn oai_embed(
     |> request.set_body(body)
     |> request.set_method(http.Post)
 
-  let res = hackney.send(req)
+  let res = {
+    use <- timing.time(
+      "openai_embed_request" <> "(" <> int.to_string(list.length(inputs)) <> ")",
+    )
+    hackney.send(req)
+  }
   case res {
     Ok(Response(_, _, body: body)) ->
       result.map_error(extract_embeddings(body), EmbedDecodeError)

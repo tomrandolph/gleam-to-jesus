@@ -84,22 +84,3 @@ pub fn dfs(
 
   do_bfs(get_neighbors, should_stop, queue.push_front, q, l, visited)
 }
-// fn do_dfs(
-//   get_neighbors: fn(a) -> List(a),
-//   should_stop: fn(a) -> Bool,
-//   node: a,
-//   l: List(a),
-//   visited: Set(a),
-// ) -> List(a) {
-//   use <- bool.guard(set.contains(visited, node), l)
-//   let visited = set.insert(visited, node)
-//   let neighbors = get_neighbors(node)
-//   let stop_for = list.find(neighbors, should_stop)
-//   use <- in_case(stop_for, fn(a) { list.reverse([a, ..l]) })
-//   let unvisited = list.filter(neighbors, fn(n) { !set.contains(visited, n) })
-//   let l =
-//     list.fold(unvisited, l, fn(n, l) {
-//       do_dfs(get_neighbors, should_stop, n, l, visited)
-//     })
-//   l
-// }

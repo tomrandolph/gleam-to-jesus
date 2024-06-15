@@ -13,6 +13,7 @@ import gleam/string
 import gleam/uri
 import graphs
 import html
+import timing
 
 fn read_input(strs: List(String)) -> String {
   let input = erlang.get_line("")
@@ -33,6 +34,7 @@ fn read_input(strs: List(String)) -> String {
 
 fn fetch_html(link: uri.Uri) {
   use req <- result.try(request.from_uri(link))
+  use <- timing.time("fetch_html")
   case hackney.send(req) {
     Error(_) -> {
       io.println_error("Failed to fetch link")
@@ -92,6 +94,8 @@ pub fn main() {
               |> list.unique
               |> list.filter(string.starts_with(_, "/wiki/"))
               |> list.filter(fn(l) { !string.contains(l, ":") })
+
+            io.debug(links)
             let topics = list.map(links, string.drop_left(_, 6))
 
             let embeddings = result.unwrap(embed.oai_embed(topics), [])
