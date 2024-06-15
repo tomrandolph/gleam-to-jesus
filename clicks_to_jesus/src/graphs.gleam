@@ -1,5 +1,6 @@
 import gleam/bool
 import gleam/dict.{type Dict}
+import gleam/io
 import gleam/list
 import gleam/queue.{type Queue}
 import gleam/result
@@ -42,6 +43,7 @@ fn do_bfs(
   visited: Set(a),
 ) -> List(a) {
   use #(node, q) <- default(queue.pop_front(q), list.reverse(l))
+  io.debug(node)
   use <- bool.lazy_guard(set.contains(visited, node), fn() {
     do_bfs(get_neighbors, should_stop, put_next, q, l, visited)
   })

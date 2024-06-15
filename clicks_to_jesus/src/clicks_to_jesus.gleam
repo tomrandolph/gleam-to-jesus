@@ -1,5 +1,7 @@
 import argv
+import embed
 import gleam/erlang.{Eof, NoData}
+import gleam/float
 import gleam/hackney
 import gleam/http/request
 import gleam/http/response.{Response}
@@ -41,10 +43,13 @@ fn fetch_html(link: uri.Uri) {
 }
 
 pub fn main() {
-  let assert Ok(looking_for) = uri.parse("https://en.wikipedia.org/wiki/Jesus")
+  let assert Ok(jesus_page) = uri.parse("https://en.wikipedia.org/wiki/Jesus")
+  let assert Ok(jesus_christ_page) =
+    uri.parse("https://en.wikipedia.org/wiki/Jesus_Christ")
   let assert Ok(base) = uri.parse("https://en.wikipedia.org")
+  let assert Ok([Ok(jesus_embed)]) = embed.oai_embed(["Jesus"])
   case argv.load().arguments {
-    [link] -> {
+    ["bfs", link] -> {
       use start <- result.try(uri.parse(link))
 
       let get_neighbors = fn(link: uri.Uri) {
@@ -64,7 +69,60 @@ pub fn main() {
           }
         }
       }
-      graphs.bfs(get_neighbors, fn(a) { a == looking_for }, start)
+      graphs.bfs(
+        get_neighbors,
+        fn(a) { a == jesus_page || a == jesus_christ_page },
+        start,
+      )
+      |> list.map(fn(a) { a.path })
+      |> io.debug
+      |> list.length
+      |> io.debug
+      Ok(Nil)
+    }
+    ["dfs", link] -> {
+      use start <- result.try(uri.parse(link))
+
+      let get_neighbors = fn(link: uri.Uri) {
+        case fetch_html(link) {
+          Error(_) -> []
+          Ok(body) -> {
+            let links =
+              html.find_internal_links(body)
+              |> list.unique
+              |> list.filter(string.starts_with(_, "/wiki/"))
+              |> list.filter(fn(l) { !string.contains(l, ":") })
+            let topics = list.map(links, string.drop_left(_, 6))
+
+            let embeddings = result.unwrap(embed.oai_embed(topics), [])
+            let similarities =
+              list.map(embeddings, fn(e) {
+                case e {
+                  Ok(v) -> embed.cosine_similarity(jesus_embed, v)
+                  Error(_) -> 0.0
+                }
+              })
+            let sorted =
+              list.sort(list.zip(links, similarities), fn(a, b) {
+                float.compare(b.1, a.1)
+              })
+            io.debug(list.take(sorted, 1))
+
+            let links =
+              sorted
+              |> list.map(fn(l) {
+                use path <- result.try(uri.parse(l.0))
+                uri.merge(base, path)
+              })
+            result.values(links)
+          }
+        }
+      }
+      graphs.bfs(
+        get_neighbors,
+        fn(a) { a == jesus_page || a == jesus_christ_page },
+        start,
+      )
       |> list.map(fn(a) { a.path })
       |> io.debug
       |> list.length
@@ -72,7 +130,7 @@ pub fn main() {
       Ok(Nil)
     }
     _ -> {
-      io.println_error("Usage: gleam run <link>")
+      io.println_error("Usage: gleam run (bfs|dfs) <link>")
       Error(Nil)
     }
   }
