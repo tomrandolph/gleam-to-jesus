@@ -3,7 +3,6 @@ import gleam/dict.{type Dict}
 import gleam/io
 import gleam/list
 import gleam/queue.{type Queue}
-import gleam/result
 import gleam/set.{type Set}
 
 /// Allows returning early with a default value (fallback)
@@ -37,28 +36,31 @@ pub fn in_case(
 fn do_bfs(
   get_neighbors: fn(a) -> List(a),
   should_stop: fn(a) -> Bool,
-  put_next: fn(Queue(a), a) -> Queue(a),
+  add_to_q: fn(List(a), Queue(a)) -> Queue(a),
   q: Queue(a),
   l: List(a),
   visited: Set(a),
 ) -> List(a) {
   use #(node, q) <- default(queue.pop_front(q), list.reverse(l))
-  io.debug(node)
-  use <- bool.lazy_guard(set.contains(visited, node), fn() {
-    do_bfs(get_neighbors, should_stop, put_next, q, l, visited)
-  })
 
+  use <- bool.lazy_guard(set.contains(visited, node), fn() {
+    do_bfs(get_neighbors, should_stop, add_to_q, q, l, visited)
+  })
+  io.debug(node)
   let visited = set.insert(visited, node)
 
   let l = [node, ..l]
   let neighbors = get_neighbors(node)
   let stop_for = list.find(neighbors, should_stop)
   use <- in_case(stop_for, fn(a) { list.reverse([a, ..l]) })
-  let q =
+  let unvisited_neighbors =
     list.filter(neighbors, fn(n) { !set.contains(visited, n) })
-    |> list.fold(q, put_next)
 
-  do_bfs(get_neighbors, should_stop, put_next, q, l, visited)
+  let q =
+    unvisited_neighbors
+    |> add_to_q(q)
+
+  do_bfs(get_neighbors, should_stop, add_to_q, q, l, visited)
 }
 
 pub fn bfs(
@@ -70,7 +72,14 @@ pub fn bfs(
   let l = []
   let visited = set.new()
 
-  do_bfs(get_neighbors, should_stop, queue.push_back, q, l, visited)
+  do_bfs(
+    get_neighbors,
+    should_stop,
+    fn(ll, qq) { list.fold(ll, qq, queue.push_back) },
+    q,
+    l,
+    visited,
+  )
 }
 
 pub fn dfs(
@@ -82,5 +91,12 @@ pub fn dfs(
   let l = []
   let visited = set.new()
 
-  do_bfs(get_neighbors, should_stop, queue.push_front, q, l, visited)
+  do_bfs(
+    get_neighbors,
+    should_stop,
+    fn(ll, qq) { list.fold_right(ll, qq, queue.push_front) },
+    q,
+    l,
+    visited,
+  )
 }

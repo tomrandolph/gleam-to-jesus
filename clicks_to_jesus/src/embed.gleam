@@ -50,6 +50,9 @@ pub fn oai_embed(
       result.map_error(extract_embeddings(body), EmbedDecodeError)
 
     Error(err) -> {
+      io.print_error("!embed failed")
+      io.debug(inputs)
+      io.debug(err)
       Error(EmbedRequestError(err))
     }
   }
