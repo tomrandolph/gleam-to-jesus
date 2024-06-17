@@ -5,6 +5,7 @@ import gleam/float
 import gleam/hackney
 import gleam/http/request
 import gleam/http/response.{Response}
+import gleam/int
 import gleam/io
 import gleam/list
 import gleam/otp/task
@@ -40,7 +41,11 @@ fn fetch_html(link: uri.Uri) {
       io.println_error("Failed to fetch link")
       Error(Nil)
     }
-    Ok(Response(_, _, body)) -> Ok(body)
+    Ok(Response(200, _, body)) -> Ok(body)
+    Ok(Response(status, _, _)) -> {
+      io.println_error("Bad status code " <> int.to_string(status))
+      Error(Nil)
+    }
   }
 }
 
