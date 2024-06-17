@@ -41,7 +41,7 @@ fn fetch_html(link: uri.Uri) {
       io.println_error("Failed to fetch link")
       Error(Nil)
     }
-    Ok(Response(200, _, body)) -> Ok(body)
+    Ok(Response(status, _, body)) if status >= 200 && status < 300 -> Ok(body)
     Ok(Response(status, _, _)) -> {
       io.println_error("Bad status code " <> int.to_string(status))
       Error(Nil)
